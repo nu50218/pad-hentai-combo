@@ -91,11 +91,11 @@ func main() {
 		}
 	}()
 
-	cap := make(chan struct{}, 4)
+	cap := make(chan struct{}, 100)
 	for {
 		cap <- struct{}{}
 		go func() {
-			a.SimulatedAnnealing(100000)
+			a.SimulatedAnnealing(10000)
 			<-cap
 		}()
 	}

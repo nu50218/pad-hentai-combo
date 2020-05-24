@@ -21,38 +21,17 @@ func (b *Board) Simulate() Combo {
 }
 
 func (b *Board) simulate(phase int, initialCoordinate map[Coordinate]Coordinate) Combo {
-	label := map[Coordinate]int{}
-	currentLabel := 1
+	disappear := map[Coordinate]bool{}
 
-	affixLabel := func(c1, c2, c3 Coordinate) {
+	checkDisappear := func(c1, c2, c3 Coordinate) {
 		if b.Data[c1] == 0 || b.Data[c2] == 0 || b.Data[c3] == 0 {
 			return
 		}
 
 		if b.Data[c1] == b.Data[c2] && b.Data[c2] == b.Data[c3] {
-			// 既にChainの一部ならそのlabelを他に伝搬させる
-			// 異なるlabelが存在することはない
-			if label[c1] != 0 {
-				label[c2] = label[c1]
-				label[c3] = label[c1]
-				return
-			}
-			if label[c2] != 0 {
-				label[c1] = label[c2]
-				label[c3] = label[c2]
-				return
-			}
-			if label[c3] != 0 {
-				label[c1] = label[c3]
-				label[c2] = label[c3]
-				return
-			}
-
-			// 新Chain
-			label[c1] = currentLabel
-			label[c2] = currentLabel
-			label[c3] = currentLabel
-			currentLabel++
+			disappear[c1] = true
+			disappear[c2] = true
+			disappear[c3] = true
 		}
 	}
 
@@ -62,7 +41,7 @@ func (b *Board) simulate(phase int, initialCoordinate map[Coordinate]Coordinate)
 			c2 := Coordinate{x + 1, y}
 			c3 := Coordinate{x + 2, y}
 
-			affixLabel(c1, c2, c3)
+			checkDisappear(c1, c2, c3)
 		}
 	}
 
@@ -72,29 +51,53 @@ func (b *Board) simulate(phase int, initialCoordinate map[Coordinate]Coordinate)
 			c2 := Coordinate{x, y + 1}
 			c3 := Coordinate{x, y + 2}
 
-			affixLabel(c1, c2, c3)
+			checkDisappear(c1, c2, c3)
 		}
 	}
 
-	if currentLabel == 1 {
+	if len(disappear) == 0 {
 		// コンボ無し
 		return nil
 	}
 
 	combo := Combo{}
 
-	for l := 1; l < currentLabel; l++ {
+	checked := map[Coordinate]bool{}
+	for co := range disappear {
+		if checked[co] {
+			continue
+		}
+
 		chain := Chain{Phase: phase}
 
-		for x := 0; x < b.Height; x++ {
-			for y := 0; y < b.Width; y++ {
-				co := ComboCoordinate{
-					Coordinate{x, y},
-					initialCoordinate[Coordinate{x, y}],
+		// bfs
+		queue := []Coordinate{co}
+		checked[co] = true
+		chain.Coordinates = append(chain.Coordinates, ComboCoordinate{
+			co,
+			initialCoordinate[co],
+		})
+
+		for ; len(queue) != 0; queue = queue[1:] {
+			f := queue[0]
+
+			dx := []int{0, 0, 1, -1}
+			dy := []int{1, -1, 0, 0}
+
+			for i := range dx {
+				nextCo := Coordinate{f.X + dx[i], f.Y + dy[i]}
+				if checked[nextCo] || b.Data[nextCo] == 0 {
+					continue
 				}
-				if label[co.Coordinate] == l {
-					chain.Coordinates = append(chain.Coordinates, co)
+				if b.Data[co] != b.Data[nextCo] {
+					continue
 				}
+				chain.Coordinates = append(chain.Coordinates, ComboCoordinate{
+					nextCo,
+					initialCoordinate[nextCo],
+				})
+				queue = append(queue, nextCo)
+				checked[nextCo] = true
 			}
 		}
 
@@ -115,7 +118,7 @@ func (b *Board) simulate(phase int, initialCoordinate map[Coordinate]Coordinate)
 			co := Coordinate{x, y}
 			newCo := Coordinate{newX, y}
 
-			if label[co] == 0 {
+			if !disappear[co] {
 				nextBoard.Data[newCo] = b.Data[co]
 				nextInitialCoordinate[newCo] = initialCoordinate[co]
 				newX--
