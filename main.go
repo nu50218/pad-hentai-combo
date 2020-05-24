@@ -3,6 +3,7 @@ package main
 import (
 	"math/rand"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/nu50218/pad-hentai-combo/annealing"
@@ -17,8 +18,8 @@ func eval(b puzzle.Board) int {
 	combo := b.Simulate()
 
 	const (
-		k1 = 0
-		k2 = 0
+		k1 = 1
+		k2 = 1
 		k3 = 1
 	)
 
@@ -73,8 +74,6 @@ func neighbour(b puzzle.Board) puzzle.Board {
 	}
 
 	randomSwap()
-	randomSwap()
-	randomSwap()
 
 	return b
 }
@@ -91,11 +90,11 @@ func main() {
 		}
 	}()
 
-	cap := make(chan struct{}, 100)
+	cap := make(chan struct{}, runtime.NumCPU())
 	for {
 		cap <- struct{}{}
 		go func() {
-			a.SimulatedAnnealing(10000)
+			a.SimulatedAnnealing(1000000)
 			<-cap
 		}()
 	}

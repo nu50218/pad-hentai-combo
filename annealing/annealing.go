@@ -32,13 +32,16 @@ type Option struct {
 	NumColor int
 	// alpha 温度の底
 	Alpha float64
+	// 盤面最大コンボの最小数
+	MinMaxCombo int
 }
 
 var DefaultOption = Option{
-	H:        5,
-	W:        6,
-	NumColor: 6,
-	Alpha:    0.995,
+	H:           5,
+	W:           6,
+	NumColor:    6,
+	Alpha:       0.995,
+	MinMaxCombo: 9,
 }
 
 func NewAnnealer(eval EvalFunc, neighbour NeighbourFunc, option Option) *Annealer {
@@ -54,9 +57,28 @@ func NewAnnealer(eval EvalFunc, neighbour NeighbourFunc, option Option) *Anneale
 }
 
 func (a *Annealer) SimulatedAnnealing(maxIter int) {
-	a.cnt++
-
 	currentState := puzzle.RandomBoard(a.option.H, a.option.W, a.option.NumColor)
+
+	countMaxCombo := func(b puzzle.Board) int {
+		// color -> num
+		cnt := map[int]int{}
+		for x := 0; x < b.Height; x++ {
+			for y := 0; y < b.Width; y++ {
+				cnt[b.Data[puzzle.Coordinate{X: x, Y: y}]]++
+			}
+		}
+
+		maxCombo := 0
+		for _, val := range cnt {
+			maxCombo += val / 3
+		}
+
+		return maxCombo
+	}
+
+	for countMaxCombo(currentState) < a.option.MinMaxCombo {
+		currentState = puzzle.RandomBoard(a.option.H, a.option.W, a.option.NumColor)
+	}
 
 	a.mut.Lock()
 	e := a.eval(currentState)
@@ -83,6 +105,8 @@ func (a *Annealer) SimulatedAnnealing(maxIter int) {
 			e = nextE
 		}
 	}
+
+	a.cnt++
 }
 
 func (*Annealer) probability(e1, e2 int, t float64) float64 {
